@@ -1,0 +1,112 @@
+trigger:
+  branches:
+    include:
+      - main        # or whichever branches you want
+  paths:
+    include:
+      - infra/*     # Optional: run only when infra changes
+
+variables:
+  TF_WORKING_DIR: 'infra'
+  AZURE_SERVICE_CONNECTION: 'sc-az-terraform'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+
+# ─────────────────────────────────────────
+# STAGE 1 — PLAN
+# ─────────────────────────────────────────
+  - stage: Plan
+    jobs:
+      - job: tf_plan
+        steps:
+          - checkout: self
+
+          - task: Bash@3
+            displayName: "Install Terraform"
+            inputs:
+              targetType: inline
+              script: |
+                TF_VERSION=1.9.8
+                curl -sLo terraform.zip https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip
+                sudo unzip -o terraform.zip -d /usr/local/bin
+                terraform -version
+
+          - task: AzureCLI@2
+            displayName: "Terraform Init & Plan"
+            inputs:
+              azureSubscription: '$(AZURE_SERVICE_CONNECTION)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              addSpnToEnvironment: true
+              inlineScript: |
+                set -e
+        
+                export ARM_CLIENT_ID="$servicePrincipalId"
+                export ARM_OIDC_TOKEN="$idToken"
+                export ARM_USE_OIDC=true
+                export ARM_TENANT_ID="$tenantId"
+                export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+                cd $(TF_WORKING_DIR)
+
+                terraform init -input=false
+
+                terraform validate
+
+                terraform plan \
+                  -input=false \
+                  -out="$(Build.ArtifactStagingDirectory)/tfplan.out"
+
+          - publish: '$(Build.ArtifactStagingDirectory)'
+            artifact: tfplan
+
+# ─────────────────────────────────────────
+# STAGE 2 — APPLY
+# ─────────────────────────────────────────
+  - stage: Apply
+    dependsOn: Plan
+    condition: succeeded('Plan')
+    jobs:
+      - job: tf_apply
+        steps:
+          - checkout: self
+
+          - download: current
+            artifact: tfplan
+
+          - task: Bash@3
+            displayName: "Install Terraform"
+            inputs:
+              targetType: inline
+              script: |
+                TF_VERSION=1.9.8
+                curl -sLo terraform.zip https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_amd64.zip
+                sudo unzip -o terraform.zip -d /usr/local/bin
+                terraform -version
+
+          - task: AzureCLI@2
+            displayName: "Terraform Apply"
+            inputs:
+              azureSubscription: '$(AZURE_SERVICE_CONNECTION)'
+              scriptType: bash
+              scriptLocation: inlineScript
+              addSpnToEnvironment: true
+              inlineScript: |
+                set -e
+
+                export ARM_CLIENT_ID="$servicePrincipalId"
+                export ARM_OIDC_TOKEN="$idToken"
+                export ARM_USE_OIDC=true
+                export ARM_TENANT_ID="$tenantId"
+                export ARM_SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+                cd $(TF_WORKING_DIR)
+
+                terraform init -input=false
+
+                terraform apply \
+                  -input=false \
+                  "$(Pipeline.Workspace)/tfplan/tfplan.out"
