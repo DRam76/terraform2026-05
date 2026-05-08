@@ -4,11 +4,12 @@ trigger:
       - main        # or whichever branches you want
   paths:
     include:
-      - infra/*     # Optional: run only when infra changes
-#      - 07may2026-repos-terraform/infra/*
+#      - infra/*     # Optional: run only when infra changes
+      - 07may2026-repos-terraform/infra/*
 
 variables:
-  TF_WORKING_DIR: 'infra'
+#  TF_WORKING_DIR: 'infra'
+  TF_WORKING_DIR: '07may2026-repos-terraform/infra'
   AZURE_SERVICE_CONNECTION: 'sc-az-terraform'
 
 pool:
