@@ -4,7 +4,7 @@ trigger:
       - main        # or whichever branches you want
   paths:
     include:
-#      - infra/*     # Optional: run only when infra changes
+      - infra/*     # Optional: run only when infra changes
 #      - 07may2026-repos-terraform/infra/*
 
 variables:
