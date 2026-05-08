@@ -5,7 +5,7 @@ trigger:
   paths:
     include:
 #      - infra/*     # Optional: run only when infra changes
-      - 07may2026-repos-terraform/infra/*
+#      - 07may2026-repos-terraform/infra/*
 
 variables:
   TF_WORKING_DIR: 'infra'
