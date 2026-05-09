@@ -17,6 +17,18 @@ variable "tags" {
 }
 
 variable "environment" {
-  type    = string
-  default = "dev"
+  description = "Environment name (e.g. dev, staging, prod)"
+  type        = string
+  default     = "dev"
+}
+
+variable "initial_secrets" {
+  description = "Initial secrets to seed the Key Vault with"
+  type = list(object({
+    name         = string
+    value        = string
+    content_type = optional(string, null)
+  }))
+  default   = []
+  sensitive = true
 }
